@@ -6,14 +6,14 @@
 <configuration>
 <property>
 <name>mapreduce.combine.class</name>
-<value>org.apache.hadoop.mapred.nativetask.kvtest.KVJob$ValueMReducer</value>
+<value>org.apache.hadoop.mapred.nativetask.kvtest.KVJob$KVMReducer</value>
 </property>
 <property>
 <name>mapreduce.reduce.class</name>
-<value>org.apache.hadoop.mapred.nativetask.kvtest.KVJob$ValueMReducer</value>
+<value>org.apache.hadoop.mapred.nativetask.kvtest.KVJob$KVMReducer</value>
 </property>
 <property>
 <name>mapreduce.reduce.class</name>
-<value>org.apache.hadoop.mapred.nativetask.kvtest.KVJob$ValueReducer</value>
+<value>org.apache.hadoop.mapred.nativetask.kvtest.KVJob$KVReducer</value>
 </property>
 </Configuration>

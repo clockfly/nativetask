@@ -1,4 +1,4 @@
-package org.apache.hadoop.mapred.nativetask.testframe.util;
+package org.apache.hadoop.mapred.nativetask.testutil;
 
 import java.io.IOException;
 import java.util.zip.CRC32;
@@ -24,27 +24,38 @@ public class ResultVerifier {
 		FSDataInputStream sourcein = null;
 		FSDataInputStream samplein = null;
 
-		String sampleline = null;
-		String sourceline = null;
-
-		
 		Configuration conf = new Configuration();
 		FileSystem fs = FileSystem.get(conf);
 		Path hdfssource = new Path(source);
 		Path[] sourcepaths = FileUtil.stat2Paths(fs.listStatus(hdfssource));
-		
-		// Path hdfssample = new Path(sample);
-		// FileStatus[] samplepaths = fs.listStatus(hdfssample);
-		if(sourcepaths==null)
+
+		Path hdfssample = new Path(sample);
+		Path[] samplepaths = FileUtil.stat2Paths(fs.listStatus(hdfssample));
+		if (sourcepaths == null)
 			throw new Exception("source file can not be found");
+		if (samplepaths == null)
+			throw new Exception("sample file can not be found");
+		if (sourcepaths.length != samplepaths.length)
+			return false;
 		for (int i = 0; i < sourcepaths.length; i++) {
 			Path sourcepath = sourcepaths[i];
 			// op result file start with "part-r" like part-r-00000
-			
+
 			if (!sourcepath.getName().startsWith("part-r"))
 				continue;
-			Path samplepath = new Path(sample + "/" + sourcepath.getName());
-			
+			Path samplepath = null;
+			for (int j = 0; j < samplepaths.length; j++) {
+				if (samplepaths[i].getName().equals(sourcepath.getName())) {
+					samplepath = samplepaths[i];
+					break;
+				}
+			}
+			if (samplepath == null)
+				throw new Exception("cound not found file "
+						+ samplepaths[0].getParent() + "/"
+						+ sourcepath.getName()
+						+ " , as sourcepaths has such file");
+
 			// compare
 			try {
 				if (fs.exists(sourcepath) && fs.exists(samplepath)) {
@@ -55,21 +66,21 @@ public class ResultVerifier {
 							+ " or " + samplepath);
 					return false;
 				}
-				
+
 				CRC32 sourcecrc, samplecrc;
 				samplecrc = new CRC32();
 				sourcecrc = new CRC32();
 				byte[] bufin = new byte[1 << 16];
 				int readnum = 0;
-				while(samplein.available() > 0){
+				while (samplein.available() > 0) {
 					readnum = samplein.read(bufin);
-					samplecrc.update(bufin,0,readnum);
+					samplecrc.update(bufin, 0, readnum);
 				}
 				while (sourcein.available() > 0) {
 					readnum = sourcein.read(bufin);
-					sourcecrc.update(bufin,0,readnum);
+					sourcecrc.update(bufin, 0, readnum);
 				}
-				
+
 				if (samplecrc.getValue() == sourcecrc.getValue())
 					;
 				else {
@@ -79,7 +90,7 @@ public class ResultVerifier {
 				// TODO Auto-generated catch block
 				throw new Exception("verify exception :", e);
 			} finally {
-				
+
 				try {
 					if (samplein != null)
 						samplein.close();

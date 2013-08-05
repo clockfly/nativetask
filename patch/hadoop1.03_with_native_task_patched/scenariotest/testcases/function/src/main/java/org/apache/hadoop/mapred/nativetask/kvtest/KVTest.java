@@ -3,14 +3,14 @@ package org.apache.hadoop.mapred.nativetask.kvtest;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapred.nativetask.compresstest.CompressTest;
-import org.apache.hadoop.mapred.nativetask.testframe.util.ResultVerifier;
-import org.apache.hadoop.mapred.nativetask.testframe.util.ScenarioConfiguration;
+import org.apache.hadoop.mapred.nativetask.testutil.ResultVerifier;
+import org.apache.hadoop.mapred.nativetask.testutil.ScenarioConfiguration;
+import org.apache.hadoop.mapred.nativetask.testutil.TestConstrants;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -19,55 +19,57 @@ import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
 public class KVTest {
-	public static final String NATIVETASK_KVTEST_CONF_KEYCLASS = "nativetask.kvtest.keyclass";
-	public static final String NATIVETASK_KVTEST_CONF_VALUECLASS = "nativetask.kvtest.valueclass";
 	private static Class<?>[] keyclasses = null;
 	private static Class<?>[] valueclasses = null;
 	private static String[] keyclassNames = null;
 	private static String[] valueclassNames = null;
-	public static final String NATIVETASK_KVTEST_CONF_PATH = "kvtest-conf.xml";
-	public static final String NATIVETASK_KVTEST_CONF_INPUTDIR = "nativetask.kvtest.inputdir";
-	public static final String NATIVETASK_KVTEST_CONF_OUTPUTDIR = "nativetask.kvtest.outputdir";
-	public static final String NATIVETASK_KVTEST_CONF_NORMAL_OUTPUTDIR = "normal.kvtest.outputdir";
-	public static final String NATIVETASK_KVTEST_CONF_CREATEFILE = "nativetask.kvtest.createfile";
-	public static final String NATIVETASK_KVTEST_CONF_FILE_RECORDNUM = "nativetask.kvtest.file.recordnum";
-	public static final String NATIVETASK_KVTEST_CONF_KEYCLASSES = "nativetask.kvtest.keyclasses";
-	public static final String NATIVETASK_KVTEST_CONF_VALUECLASSES = "nativetask.kvtest.valueclasses";
-	public static final String NATIVETASK_COLLECTOR_DELEGATOR = "mapreduce.map.output.collector.delegator.class";
-	public static final String NATIVETASK_COLLECTOR_DELEGATOR_CLASS = "org.apache.hadoop.mapred.nativetask.NativeMapOutputCollectorDelegator";
-	private static Configuration kvtestcommonconf = new Configuration(ScenarioConfiguration.commonconf);
-	static{
-		kvtestcommonconf.addResource(NATIVETASK_KVTEST_CONF_PATH);
-		kvtestcommonconf.addResource(CompressTest.NATIVETASK_COMPRESS_CONF_PATH);
+
+	private static ScenarioConfiguration nativekvtestconf = null;
+	private static ScenarioConfiguration hadoopkvtestconf = null;
+	static {
+		nativekvtestconf = new ScenarioConfiguration();
+		nativekvtestconf.addNativeConf();
+		nativekvtestconf.addKVTestConf();
+		hadoopkvtestconf = new ScenarioConfiguration();
+		hadoopkvtestconf.addKVTestConf();
 	}
+
 	@Parameters(name = "key:{0}\nvalue:{1}")
 	public static Iterable<Class<?>[]> data() {
-		
-		String valueclassesStr = kvtestcommonconf.get(NATIVETASK_KVTEST_CONF_VALUECLASSES);
-		
-		valueclassNames = valueclassesStr.trim().split("\n");
-		valueclasses = new Class<?>[valueclassNames.length];
+		String valueclassesStr = nativekvtestconf
+				.get(TestConstrants.NATIVETASK_KVTEST_VALUECLASSES);
+		System.out.println(valueclassesStr);
+		valueclassNames = valueclassesStr.replaceAll("\\s", "").split(";");// delete
+																			// " "
+		ArrayList<Class<?>> tmpvalueclasses = new ArrayList<Class<?>>();
 		for (int i = 0; i < valueclassNames.length; i++) {
 			try {
-				valueclasses[i] = Class.forName(valueclassNames[i]);
+				if(valueclassNames[i].equals(""))
+					continue;
+				tmpvalueclasses.add(Class.forName(valueclassNames[i]));
 			} catch (ClassNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		String keyclassesStr = kvtestcommonconf.get(NATIVETASK_KVTEST_CONF_KEYCLASSES);
-		
-		keyclassNames = keyclassesStr.trim().split("\n");
-		keyclasses = new Class<?>[keyclassNames.length];
+		valueclasses = tmpvalueclasses.toArray(new Class[tmpvalueclasses.size()]);
+		String keyclassesStr = nativekvtestconf
+				.get(TestConstrants.NATIVETASK_KVTEST_KEYCLASSES);
+		System.out.println(keyclassesStr);
+		keyclassNames = keyclassesStr.replaceAll("\\s", "").split(";");// delete
+													// " "
+		ArrayList<Class<?>> tmpkeyclasses = new ArrayList<Class<?>>();
 		for (int i = 0; i < keyclassNames.length; i++) {
 			try {
-				keyclasses[i] = Class.forName(keyclassNames[i]);
+				if(keyclassNames[i].equals(""))
+					continue;
+				tmpkeyclasses.add(Class.forName(keyclassNames[i]));
 			} catch (ClassNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		
+		keyclasses = tmpkeyclasses.toArray(new Class[tmpkeyclasses.size()]);
 		Class<?>[][] kvgroup = new Class<?>[keyclassNames.length
 				* valueclassNames.length][2];
 		for (int i = 0; i < keyclassNames.length; i++) {
@@ -86,16 +88,19 @@ public class KVTest {
 	public KVTest(Class<?> keyclass, Class<?> valueclass) {
 		this.keyclass = keyclass;
 		this.valueclass = valueclass;
+
 	}
 
 	@Test
-	public void test() {
-		
+	public void testKVCompability() {
+
 		try {
-			String nativeoutput = this.runNativeTest("Test:"+keyclass.getSimpleName()
-					+ "--" + valueclass.getSimpleName(), keyclass, valueclass);
-			String normaloutput = this.runNormalTest("Test:"+keyclass.getSimpleName()
-					+ "--" + valueclass.getSimpleName(), keyclass, valueclass);
+			String nativeoutput = this.runNativeTest(
+					"Test:" + keyclass.getSimpleName() + "--"
+							+ valueclass.getSimpleName(), keyclass, valueclass);
+			String normaloutput = this.runNormalTest(
+					"Test:" + keyclass.getSimpleName() + "--"
+							+ valueclass.getSimpleName(), keyclass, valueclass);
 			boolean compareRet = ResultVerifier.verify(normaloutput,
 					nativeoutput);
 			assertEquals(
@@ -103,10 +108,10 @@ public class KVTest {
 					true, compareRet);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			assertEquals("test run exception:",null,e);
+			assertEquals("test run exception:", null, e);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			assertEquals("test run exception:",null,e);
+			assertEquals("test run exception:", null, e);
 		}
 	}
 
@@ -117,21 +122,23 @@ public class KVTest {
 
 	private String runNativeTest(String jobname, Class<?> keyclass,
 			Class<?> valueclass) throws IOException {
-		Configuration conf = new Configuration(kvtestcommonconf);
-		conf.set(NATIVETASK_COLLECTOR_DELEGATOR,
-				NATIVETASK_COLLECTOR_DELEGATOR_CLASS);
-		String inputpath = conf.get(NATIVETASK_KVTEST_CONF_INPUTDIR) + "/"
+		String inputpath = nativekvtestconf
+				.get(TestConstrants.NATIVETASK_KVTEST_INPUTDIR)
+				+ "/"
 				+ keyclass.getName() + "/" + valueclass.getName();
-		String outputpath = conf.get(NATIVETASK_KVTEST_CONF_OUTPUTDIR) + "/"
+		String outputpath = nativekvtestconf
+				.get(TestConstrants.NATIVETASK_KVTEST_OUTPUTDIR)
+				+ "/"
 				+ keyclass.getName() + "/" + valueclass.getName();
-		conf.set(KVJob.FILE_INPUTPATH_CONF_KEY, inputpath);
-		conf.set(KVJob.FILE_OUTPUTPATH_CONF_KEY, outputpath);
-		FileSystem fs = FileSystem.get(conf);
+		//if output file exists ,then delete it
+		FileSystem fs = FileSystem.get(nativekvtestconf);
 		fs.delete(new Path(outputpath));
 		fs.close();
-		conf.set(NATIVETASK_KVTEST_CONF_CREATEFILE, "true");
+		nativekvtestconf.set(TestConstrants.NATIVETASK_KVTEST_CREATEFILE,
+				"true");
 		try {
-			KVJob keyJob = new KVJob(jobname, conf, keyclass, valueclass);
+			KVJob keyJob = new KVJob(jobname, nativekvtestconf, keyclass,
+					valueclass,inputpath,outputpath);
 			keyJob.runJob();
 		} catch (Exception e) {
 			return "native testcase run time error.";
@@ -141,19 +148,23 @@ public class KVTest {
 
 	private String runNormalTest(String jobname, Class<?> keyclass,
 			Class<?> valueclass) throws IOException {
-		Configuration conf = new Configuration(kvtestcommonconf);
-		String inputpath = conf.get(NATIVETASK_KVTEST_CONF_INPUTDIR) + "/"
+		String inputpath = hadoopkvtestconf
+				.get(TestConstrants.NATIVETASK_KVTEST_INPUTDIR)
+				+ "/"
 				+ keyclass.getName() + "/" + valueclass.getName();
-		String outputpath = conf.get(NATIVETASK_KVTEST_CONF_NORMAL_OUTPUTDIR)
-				+ "/" + keyclass.getName() + "/" + valueclass.getName();
-		conf.set(KVJob.FILE_INPUTPATH_CONF_KEY, inputpath);
-		conf.set(KVJob.FILE_OUTPUTPATH_CONF_KEY, outputpath);
-		FileSystem fs = FileSystem.get(conf);
+		String outputpath = hadoopkvtestconf
+				.get(TestConstrants.NATIVETASK_KVTEST_NORMAL_OUTPUTDIR)
+				+ "/"
+				+ keyclass.getName() + "/" + valueclass.getName();
+		//if output file exists ,then delete it
+		FileSystem fs = FileSystem.get(hadoopkvtestconf);
 		fs.delete(new Path(outputpath));
 		fs.close();
-		conf.set(NATIVETASK_KVTEST_CONF_CREATEFILE, "false");
+		hadoopkvtestconf.set(TestConstrants.NATIVETASK_KVTEST_CREATEFILE,
+				"false");
 		try {
-			KVJob keyJob = new KVJob(jobname, conf, keyclass, valueclass);
+			KVJob keyJob = new KVJob(jobname, hadoopkvtestconf, keyclass,
+					valueclass, inputpath, outputpath);
 			keyJob.runJob();
 		} catch (Exception e) {
 			return "normal testcase run time error.";

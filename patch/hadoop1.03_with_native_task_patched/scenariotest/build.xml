@@ -47,16 +47,16 @@
 	-->
 	<!-- local or cluster conf , it should be set, before running-->
 	<!-- you should choose one as bellow two choices -->
-
+	<!--
 	<path id="env.conf.path">
 		<pathelement location="${scenariotest.home}/conf" />
 	</path>
-
-	<!--
+	-->
+	
 	<path id="env.conf.path">
 		<pathelement location="${hadoop.home}/conf" />
 	</path>
-	-->
+	
 	<condition property="kvtest.mode.compress">
 		<istrue value="true" />
 	</condition>
@@ -78,12 +78,11 @@
 		</jar>
 		<echo message="${java.library.path}" />
 	</target>
-	<target name="testKVwithCompress" depends="compile" if="kvtest.mode.compress">
+	<target name="testKV" depends="compile">
 		<junit printsummary="yes" showoutput="true" fork="yes">
 			<classpath>
 				<path refid="scenariotest.kvtest.conf.path" />
 				<path refid="env.conf.path" />
-				<path refid="scenariotest.compress.conf.path" />
 				<path refid="test.run.path" />
 			</classpath>
 			<formatter type="xml" />
@@ -93,16 +92,16 @@
 		</junit>
 		<echo message="For detail report, check folder ${report.dir}" />
 	</target>
-	<target name="testKVwithoutCompress" depends="compile" unless="kvtest.mode.compress">
+	<target name="testCompress" depends="compile" if="kvtest.mode.compress">
 		<junit printsummary="yes" showoutput="true" fork="yes">
 			<classpath>
-				<path refid="scenariotest.kvtest.conf.path" />
 				<path refid="env.conf.path" />
 				<path refid="test.run.path" />
+				<path refid="scenariotest.compress.conf.path" />
 			</classpath>
 			<formatter type="xml" />
 			<batchtest fork="yes" todir="${report.dir}">
-				<fileset dir="${testclasses.dir}" includes="**/kvtest/*Test.class" />
+				<fileset dir="${testclasses.dir}" includes="**/compresstest/*Test.class" />
 			</batchtest>
 		</junit>
 		<echo message="For detail report, check folder ${report.dir}" />
@@ -120,8 +119,7 @@
 		</junit>
 		<echo message="For detail report, check folder ${report.dir}" />
 	</target>
-	<target name="testKV" depends="testKVwithoutCompress,testKVwithCompress" />
-	<target name="testAll" depends="testKV,testWordCountWithCombiner" />
+	<target name="testAll" depends="testKV,testCompress,testWordCountWithCombiner" />
 	<target name="reportAll" depends="testAll">
 		<delete dir="${report.dir}/html" />
 		<mkdir dir="${report.dir}/html" />

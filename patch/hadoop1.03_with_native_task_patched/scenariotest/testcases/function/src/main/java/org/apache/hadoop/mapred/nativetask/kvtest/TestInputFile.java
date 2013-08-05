@@ -14,13 +14,10 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.UTF8;
 import org.apache.hadoop.io.VLongWritable;
-import org.apache.hadoop.mapred.nativetask.testframe.util.BytesUtil;
-import org.apache.hadoop.mapred.nativetask.testframe.util.ScenarioConfiguration;
+import org.apache.hadoop.mapred.nativetask.testutil.BytesUtil;
+import org.apache.hadoop.mapred.nativetask.testutil.ScenarioConfiguration;
 
-public class TestFile {
-	public static final int BytesMinLen = 8;// match to generate Double and Long
-											// datatype
-	public static final String FILESIZE_CONF_KEY = "kvtest.file.size";
+public class TestInputFile {
 	private byte[] databuf = null;
 	private String keyClsName, valueClsName;
 	private int filesize = 0;
@@ -34,34 +31,13 @@ public class TestFile {
 		KEY, VALUE
 	};
 
-	public TestFile(int filesize, String filepath, String keytype,
+	public TestInputFile(int filesize, String keytype,
 			String valuetype) throws Exception {
-		System.out.println("create file "+filepath);
 		this.filesize = filesize;
-		Class<?> tmpkeycls, tmpvaluecls;
-		try {
-			tmpkeycls = Class.forName(keytype);
-			this.keyClsName = keytype;
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			throw new Exception("key class not found: ", e);
-		}
-		try {
-			tmpvaluecls = Class.forName(valuetype);
-			this.valueClsName = valuetype;
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			throw new Exception("key class not found: ", e);
-		}
 		this.databuf = new byte[DATABUFSIZE];
-		try {
-			FileSystem hdfs = FileSystem.get(ScenarioConfiguration.commonconf);
-			Path outputfilepath = new Path(filepath);
-			writer = new SequenceFile.Writer(hdfs, ScenarioConfiguration.commonconf, outputfilepath,
-					tmpkeycls, tmpvaluecls);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		this.keyClsName = keytype;
+		this.valueClsName = valuetype;
+		
 		if (keytype.equals(BooleanWritable.class.getName())) {
 			keyMaxBytesNum = 1;
 			keyMinBytesNum = 1;
@@ -114,7 +90,31 @@ public class TestFile {
 		}
 	}
 
-	public void createSequenceTestFile() throws Exception {
+	public void createSequenceTestFile(String filepath) throws Exception {
+		System.out.println("create file "+filepath);
+		System.out.println(keyClsName+" "+valueClsName);
+		Class<?> tmpkeycls, tmpvaluecls;
+		try {
+			tmpkeycls = Class.forName(keyClsName);
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			throw new Exception("key class not found: ", e);
+		}
+		try {
+			tmpvaluecls = Class.forName(valueClsName);
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			throw new Exception("key class not found: ", e);
+		}
+		try {
+			FileSystem hdfs = FileSystem.get(ScenarioConfiguration.envconf);
+			Path outputfilepath = new Path(filepath);
+			writer = new SequenceFile.Writer(hdfs, ScenarioConfiguration.envconf, outputfilepath,
+					tmpkeycls, tmpvaluecls);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
 		int tmpfilesize = this.filesize - DATABUFSIZE;
 		while (tmpfilesize > 0) {
 			r.nextBytes(databuf);
@@ -161,8 +161,8 @@ public class TestFile {
 				offset += valuebytesnum;
 				state = State.KEY;
 				try {
-					writer.append(BytesUtil.generateData(key, this.keyClsName),
-							BytesUtil.generateData(value, this.valueClsName));
+					writer.append(BytesUtil.fromBytes(key, this.keyClsName),
+							BytesUtil.fromBytes(value, this.valueClsName));
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					throw new Exception("sequence file create failed", e);
@@ -170,6 +170,4 @@ public class TestFile {
 			}
 		}
 	}
-
-	
 }

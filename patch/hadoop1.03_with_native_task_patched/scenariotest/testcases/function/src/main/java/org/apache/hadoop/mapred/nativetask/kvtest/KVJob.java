@@ -6,9 +6,9 @@ import java.util.zip.CRC32;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.mapred.nativetask.testframe.util.BytesUtil;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.mapred.nativetask.testutil.BytesUtil;
+import org.apache.hadoop.mapred.nativetask.testutil.TestConstrants;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -16,8 +16,8 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 public class KVJob {
-	public static final String FILE_INPUTPATH_CONF_KEY = "nativetask.kvtest.inputfile.path";
-	public static final String FILE_OUTPUTPATH_CONF_KEY = "nativetask.kvtest.outputfile.path";
+	public static final String INPUTPATH = "nativetask.kvtest.inputfile.path";
+	public static final String OUTPUTPATH = "nativetask.kvtest.outputfile.path";
 	Job job = null;
 
 	public static class ValueMapper<KTYPE, VTYPE> extends
@@ -28,7 +28,7 @@ public class KVJob {
 		}
 	}
 
-	public static class ValueMReducer<KTYPE, VTYPE> extends
+	public static class KVMReducer<KTYPE, VTYPE> extends
 			Reducer<KTYPE, VTYPE, KTYPE, VTYPE> {
 		public void reduce(KTYPE key, VTYPE value, Context context)
 				throws IOException, InterruptedException {
@@ -36,23 +36,26 @@ public class KVJob {
 		}
 	}
 
-	public static class ValueReducer<KTYPE, VTYPE> extends
-			Reducer<KTYPE, VTYPE, KTYPE, LongWritable> {
-		private LongWritable result = new LongWritable();
+	public static class KVReducer<KTYPE, VTYPE> extends
+			Reducer<KTYPE, VTYPE, KTYPE, VTYPE> {
 
 		public void reduce(KTYPE key, Iterable<VTYPE> values, Context context)
 				throws IOException, InterruptedException {
-			CRC32 valuecrc = new CRC32();
+			long resultlong = 0;//8 bytes match BytesUtil.fromBytes function
+			CRC32 crc32 = new CRC32();
 			for (VTYPE val : values) {
-				valuecrc.update(BytesUtil.VTYPEToBytes(val));
+				crc32.reset();
+				crc32.update(BytesUtil.toBytes(val));
+				resultlong += crc32.getValue();
 			}
-			result.set(valuecrc.getValue());
-			context.write(key, result);
+			VTYPE V = null;
+			context.write(key, (VTYPE) BytesUtil.fromBytes(Bytes.toBytes(resultlong), V
+					.getClass().getName()));
 		}
 	}
 
 	public KVJob(String jobname, Configuration conf, Class<?> keyclass,
-			Class<?> valueclass) throws Exception {
+			Class<?> valueclass,String inputpath,String outputpath) throws Exception {
 		// TODO Auto-generated constructor stub
 		job = new Job(conf, jobname);
 		job.setJarByClass(KVJob.class);
@@ -60,23 +63,20 @@ public class KVJob {
 		job.setOutputKeyClass(keyclass);
 		job.setOutputValueClass(valueclass);
 
-		String fileinputpath = conf.get(FILE_INPUTPATH_CONF_KEY, "");
-		String fileoutputpath = conf.get(FILE_OUTPUTPATH_CONF_KEY, "");
-
-		if (conf.get(KVTest.NATIVETASK_KVTEST_CONF_CREATEFILE).equals("true")) {
+		if (conf.get(TestConstrants.NATIVETASK_KVTEST_CREATEFILE).equals("true")) {
 			FileSystem fs = FileSystem.get(conf);
-			fs.delete(new Path(fileinputpath));
+			fs.delete(new Path(inputpath));
 			fs.close();
 
-			TestFile testfile = new TestFile(Integer.valueOf(conf.get(
-					TestFile.FILESIZE_CONF_KEY, "1000")), fileinputpath,
+			TestInputFile testfile = new TestInputFile(Integer.valueOf(conf
+					.get(TestConstrants.FILESIZE_KEY, "1000")),
 					keyclass.getName(), valueclass.getName());
-			testfile.createSequenceTestFile();
+			testfile.createSequenceTestFile(inputpath);
 
 		}
 		job.setInputFormatClass(SequenceFileInputFormat.class);
-		SequenceFileInputFormat.addInputPath(job, new Path(fileinputpath));
-		FileOutputFormat.setOutputPath(job, new Path(fileoutputpath));
+		SequenceFileInputFormat.addInputPath(job, new Path(inputpath));
+		FileOutputFormat.setOutputPath(job, new Path(outputpath));
 	}
 
 	public void runJob() throws Exception {

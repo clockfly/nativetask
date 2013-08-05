@@ -1,4 +1,4 @@
-package org.apache.hadoop.mapred.nativetask.testframe.util;
+package org.apache.hadoop.mapred.nativetask.testutil;
 
 import java.util.Random;
 
@@ -18,12 +18,14 @@ import org.apache.hadoop.io.VLongWritable;
 
 public class BytesUtil {
 	public static Random r = new Random();
-	public static Object generateData(byte[] bytes, String className) {
+	public static Object fromBytes(byte[] bytes, String className) {
 		if (className.equals(IntWritable.class.getName())) {
 			return new IntWritable(Bytes.toInt(bytes));
 		} else if (className.equals(FloatWritable.class.getName())) {
+			r.setSeed(Bytes.toLong(bytes));
 			return new FloatWritable(r.nextFloat());
 		} else if (className.equals(DoubleWritable.class.getName())) {
+			r.setSeed(Bytes.toLong(bytes));
 			return new DoubleWritable(r.nextDouble());
 		} else if (className.equals(LongWritable.class.getName())) {
 			return new LongWritable(Bytes.toLong(bytes));
@@ -46,7 +48,7 @@ public class BytesUtil {
 		} else
 			return null;
 	}
-	public static<VTYPE> byte[] VTYPEToBytes(VTYPE obj){
+	public static<VTYPE> byte[] toBytes(VTYPE obj){
 		String className = obj.getClass().getName();
 		if (className.equals(IntWritable.class.getName())) {
 			return Bytes.toBytes(((IntWritable)obj).get());
