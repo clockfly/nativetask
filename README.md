@@ -47,11 +47,11 @@ NativeTask solves the above issues and is faster because:
 
 Here is the diagram of NativeTask Performance improvement (native MapOutputCollector mode) against Hadoop original.
 
-![native MapOutputCollector mode](https://lh5.googleusercontent.com/nbysYpK6m2o30qkcMRuQ0Bl-gPt-P9pu9MDuhKrxL0A=w356-h207-p-no)
+![native MapOutputCollector mode](https://lh6.googleusercontent.com/-Cj1ojoRjKxk/U2w2LFGLz3I/AAAAAAAAC14/XnstsiUhPKA/w959-h558-no/hibench.PNG)
 
 NativeTask is 2x faster further in full native mode.    
 
-![full native mode](https://lh3.googleusercontent.com/Oa9AW7AhK3X3z7Iz8ilozJXSGIh0ZVhRtqU72sdgUok=w425-h207-p-no)
+![full native mode](https://lh6.googleusercontent.com/-Ssxz-tjd7F0/U2w2LDPC_oI/AAAAAAAAC18/JmYow_CKFYs/w822-h400-no/fullnative.PNG)
 
 ----
 
