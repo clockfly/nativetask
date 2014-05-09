@@ -1,60 +1,87 @@
-Introduction
-------------
+#Introduction
+NativeTask is a native engine inside Hadoop MapReduce(MR) Task written in 
+C++ and focuses on task performance optimization, 
+while leaving the scheduling and communication job to 
+the MR framework.
 
-NativeTask is a high performance C++ API & runtime for Hadoop MapReduce. Why
-it is called *NativeTask* is that it is a *native* computing unit only focus
-on data processing, which is exactly what *Task* do in the Hadoop MapReduce 
-context. 
-In other word, NativeTask is not responsible for resource management, job
-Scheduling and fault-tolerance. Those are all managed by original Hadoop
-components as before, unchanged. But the actual data processing and computation, 
-which consumes most of cluster resources, are delegated to this highly 
-efficient data processing unit.
+NativeTask could be used in two modes:     
+1. native MapOutputCollector mode      
+2. full native mode      
 
-NativeTask is designed to be very fast, with native C++ API. So more 
-efficient data analysis applications can build upon it, like LLVM based 
-query execution engine mentioned in Google's 
-[Tenzing](http://research.google.com/pubs/pub37200.html). 
-Actually this is the main objective of NativeTask, to provide a efficient 
-native Hadoop framework, so much more efficient data analyze tools can 
-be built upon it: 
+For the first mode, there is little user work needed other than turning on a option and users could run their Java MapReduce job transparently. For the second mode, users will need to write MapReduce jobs in C/C++.
 
-  * Data warehousing tool using state of the art query execution techniques 
-    existing in parallel DBMSs, such as compression, vectorization, dynamic 
-    compilation, etc. These techniques are more easy to implement in 
-    native code, as we can see that most of these techniques are implemented 
-    using C/C++: Vectorwise, Vertica.
+**NativeTask feature list**:      
+1. transparently support existing MRv1 and MRv2 apps   
+2. support most common key types and all values    
+3. support Java combiner    
+4. support Lz4 / Snappy / Gzip      
+5. support CRC32 and CRC32C (hardware checksum)   
+6. support Hive / Mahout / Pig     
+7. support MR ove HBase    
+8. support non-sort Map    
+9. support hash join     
 
-  * High performance data mining/machine learning libraries, most of these 
-    algorithms are CPU intensive, involving lot of numerical computation, 
-    or have been implemented using native languages already, a native runtime 
-    permits better performance, or easy porting these algorithms to Hadoop. 
 
-From user's perspective, NativeTask is a lot like Hadoop Pipes: using header 
-files and dynamic libraries provided in NativeTask library, you compile 
-your application or class library to a dynamic library rather than executable 
-program(because we use JNI), then using a Submitter tool to submit you 
-job to Hadoop cluster like streaming or pipes do. For more information, 
-please read the design document and examples in src/main/native/examples.
+----
 
-Features
---------
-1. High performance, more cost effective for your Hadoop cluster;
-2. C++ API, so user can develop native applications or apply more 
-   aggressive optimizations not available or convenient for java, 
-   like SSE/AVX instruction, LLVM, GPU computing, coprocessor etc.
-3. Support no sort, by removing sort, the shuffle stage barrier can be 
-   eliminated, yielding better data processing throughput;
-4. Support foldl style API, much faster for aggregation queries;
-5. Binary based MapReduce API, no serialization/deserialization overhead;
-6. Compatible with Hadoop 0.20-0.23(need task-delegation patch)
+##Motivation 
+We found MapReduce slow for the following reasons:
+* IO bound with Compression/Decompression overhead  
+* Inefficient Scheduling/Shuffle/Merge      
+* Inefficient memory management    
+* Suboptimal sorting    
+* Inefficient Serialization & Deserialization    
+* Inflexible programming paradigm   
+* Java limitations
 
-Notice
-------
-This project is in very early stages currently, and is not well documented. 
-If you are familiar with Hadoop MapReduce, you can hack into the source code. 
-For more informantion, please read the 
-[design document](https://github.com/decster/nativetask/wiki/The-Design-of-NativeTask)
+NativeTask solves the above issues and is faster because:
+* Use optimized Compression/Decompression codec
+* High efficient memory management
+* Highly optimized sorting
+* Use hardware optimization when neccessary
+* Avoid Java runtime side-effects
 
-Also you can find some discussion in Hadoop JIRA:  
-https://issues.apache.org/jira/browse/MAPREDUCE-2841
+----
+
+##Performance overview
+
+Here is the diagram of NativeTask Performance improvement (native MapOutputCollector mode) against Hadoop original.
+
+![native MapOutputCollector mode](https://lh5.googleusercontent.com/nbysYpK6m2o30qkcMRuQ0Bl-gPt-P9pu9MDuhKrxL0A=w356-h207-p-no)
+
+NativeTask is 2x faster further in full native mode.    
+
+![full native mode](https://lh3.googleusercontent.com/Oa9AW7AhK3X3z7Iz8ilozJXSGIh0ZVhRtqU72sdgUok=w425-h207-p-no)
+
+----
+
+##How to use
+
+### Native MapOutputCollector mode
+In MRv1, please set `mapreduce.map.output.collector.delegator.class=org.apache.hadoop.mapred.nativetask.NativeMapOutputCollectorDelegator` in JobConf. For example, to run Pi with native MapOutputCollector
+
+```bash
+hadoop jar hadoop-examples.jar pi -D mapreduce.map.output.collector.delegator.class=org.apache.hadoop.mapred.nativetask.NativeMapOutputCollectorDelegator 10 10
+```
+
+MRv2 supports pluggable MapOutputCollector. Set `mapreduce.job.map.output.collector.class=org.apache.hadoop.mapred.nativetask.NativeMapOutputCollectorDelegator` in JobConf. Now the Pi example could be run with native MapOutputCollector as
+
+```bash
+hadoop jar hadoop-mapreduce-examples.jar pi -D mapreduce.job.map.output.collector.class=org.apache.hadoop.mapred.nativetask.NativeMapOutputCollectorDelegator 10 10
+```
+
+In both MRv1 and MRv2, please check the task log, if there is 
+```bash
+INFO org.apache.hadoop.mapred.nativetask.NativeMapOutputCollectorDelegator: Native output collector can be successfully enabled! 
+```
+Then NativeTask is successfully enabled.
+
+### Full native mode
+
+----
+
+##Related work
+[MAPREDUCE-2841](https://issues.apache.org/jira/browse/MAPREDUCE-2841) discusses about some initial experiment in "task level native optimization" while our implementation comes with far more advanced features (e.g. more key types support, Java combiner support) and has been used and verified in production environment.   
+
+----
+
