@@ -72,6 +72,8 @@ Here is the steps to enable NativeTask in transparent collector mode:
 
   **Note:** Please make sure you are using bash shell to run these commands.
 
+  **Note:** It is recommended to use autoconf 2.69 and automake 1.13.4 or newer, as people have experienced problems with some older versions (autoconf 2.63 and automake 1.11.1)
+
   ```bash
   cd nativetask
   cp patch/hadoop-2.patch ${HADOOP_ROOTDIR}/
